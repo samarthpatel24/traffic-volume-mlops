@@ -25,17 +25,20 @@ stages:
     - models/weather_description_encoder.pkl
     - models/feature_scaler.pkl
     outs:
-    - models/
+    - models/traffic_volume_predictor_ensemble_*.pkl
+    - models/traffic_volume_predictor_ensemble_*_info.json
     metrics:
-    - metrics/
+    - metrics/traffic_volume_predictor_ensemble_*_metrics.json
     
   evaluate:
     cmd: python src/evaluate.py
     deps:
     - src/evaluate.py
     - data/processed/test.csv
-    - models/
+    - models/traffic_volume_predictor_ensemble_*.pkl
     outs:
-    - plots/
+    - plots/traffic_volume_predictor_ensemble_*_evaluation.html
+    - plots/traffic_volume_predictor_ensemble_*_feature_importance.html
+    - plots/traffic_volume_predictor_ensemble_*_time_series.html
     metrics:
-    - metrics/
+    - metrics/traffic_volume_predictor_ensemble_*_evaluation_metrics.json

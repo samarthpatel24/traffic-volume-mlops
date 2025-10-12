@@ -25,8 +25,12 @@ def clean_data(df):
     print("Missing values:")
     print(df.isnull().sum())
     
-    # Handle missing values
-    df = df.dropna()
+    # Handle missing values in holiday column (most are None, which is valid)
+    # We don't drop rows with None in holiday as it means "no holiday"
+    
+    # Only drop rows where critical columns have missing values
+    critical_columns = ['traffic_volume', 'temp', 'weather_main', 'weather_description', 'date_time']
+    df = df.dropna(subset=critical_columns)
     
     # Remove duplicates
     df = df.drop_duplicates()
