@@ -1,0 +1,216 @@
+name: Deploy Streamlit App
+
+on:
+  push:
+    branches: [ main, master ]
+    paths:
+      - 'app.py'
+      - 'requirements.txt'
+      - 'models/**'
+  
+  workflow_dispatch:
+    inputs:
+      deploy_environment:
+        description: 'Environment to deploy to'
+        required: false
+        default: 'staging'
+        type: choice
+        options:
+          - staging
+          - production
+
+jobs:
+  deploy-streamlit:
+    runs-on: ubuntu-latest
+    
+    steps:
+    - name: Checkout repository
+      uses: actions/checkout@v3
+    
+    - name: Set up Python
+      uses: actions/setup-python@v4
+      with:
+        python-version: '3.9'
+    
+    - name: Install dependencies
+      run: |
+        python -m pip install --upgrade pip
+        pip install -r requirements.txt
+    
+    - name: Test Streamlit app
+      run: |
+        echo "Testing Streamlit app..."
+        # Test if the app can be imported without errors
+        python -c "
+        import streamlit as st
+        import sys
+        import os
+        
+        # Add src to path
+        sys.path.append('src')
+        
+        # Test imports from app.py
+        try:
+            exec(open('app.py').read().split('if __name__')[0])
+            print('✅ Streamlit app imports successful')
+        except Exception as e:
+            print(f'❌ App import failed: {e}')
+            sys.exit(1)
+        "
+    
+    - name: Create deployment package
+      run: |
+        echo "Creating deployment package..."
+        mkdir -p deployment
+        
+        # Copy necessary files
+        cp app.py deployment/
+        cp requirements.txt deployment/
+        cp -r config deployment/
+        cp -r src deployment/
+        
+        # Copy model files if they exist
+        if [ -d "models" ]; then
+          cp -r models deployment/
+        fi
+        
+        # Create a simple startup script
+        cat > deployment/start.sh << 'EOF'
+        #!/bin/bash
+        echo "Starting Traffic Volume Prediction App..."
+        streamlit run app.py --server.port=${PORT:-8501} --server.address=0.0.0.0
+        EOF
+        
+        chmod +x deployment/start.sh
+        
+        # Create Dockerfile
+        cat > deployment/Dockerfile << 'EOF'
+        FROM python:3.9-slim
+        
+        WORKDIR /app
+        
+        COPY requirements.txt .
+        RUN pip install --no-cache-dir -r requirements.txt
+        
+        COPY . .
+        
+        EXPOSE 8501
+        
+        HEALTHCHECK CMD curl --fail http://localhost:8501/_stcore/health
+        
+        CMD ["streamlit", "run", "app.py", "--server.port=8501", "--server.address=0.0.0.0"]
+        EOF
+    
+    - name: Create docker-compose for local deployment
+      run: |
+        cat > deployment/docker-compose.yml << 'EOF'
+        version: '3.8'
+        
+        services:
+          traffic-predictor:
+            build: .
+            ports:
+              - "8501:8501"
+            environment:
+              - STREAMLIT_SERVER_PORT=8501
+              - STREAMLIT_SERVER_ADDRESS=0.0.0.0
+            volumes:
+              - ./models:/app/models:ro
+              - ./data:/app/data:ro
+            restart: unless-stopped
+            healthcheck:
+              test: ["CMD", "curl", "-f", "http://localhost:8501/_stcore/health"]
+              interval: 30s
+              timeout: 10s
+              retries: 3
+        EOF
+    
+    - name: Create deployment documentation
+      run: |
+        cat > deployment/DEPLOYMENT.md << 'EOF'
+        # Traffic Volume Predictor - Deployment Guide
+        
+        ## Local Docker Deployment
+        
+        1. **Build and run with Docker:**
+           ```bash
+           cd deployment
+           docker build -t traffic-predictor .
+           docker run -p 8501:8501 traffic-predictor
+           ```
+        
+        2. **Run with Docker Compose:**
+           ```bash
+           cd deployment
+           docker-compose up -d
+           ```
+        
+        3. **Access the application:**
+           - Open your browser and navigate to: http://localhost:8501
+        
+        ## Cloud Deployment Options
+        
+        ### 1. Streamlit Cloud
+        - Push your repository to GitHub
+        - Connect to Streamlit Cloud
+        - Deploy directly from your repository
+        
+        ### 2. Heroku
+        ```bash
+        # Create Procfile
+        echo "web: streamlit run app.py --server.port=\$PORT --server.address=0.0.0.0" > Procfile
+        
+        # Deploy to Heroku
+        heroku create your-app-name
+        git push heroku main
+        ```
+        
+        ### 3. AWS/GCP/Azure
+        - Use the provided Dockerfile
+        - Deploy to container services (ECS, Cloud Run, Container Instances)
+        
+        ## Environment Variables
+        
+        - `PORT`: Port number for the application (default: 8501)
+        - `STREAMLIT_SERVER_PORT`: Streamlit server port
+        - `STREAMLIT_SERVER_ADDRESS`: Streamlit server address
+        
+        ## Health Check
+        
+        The application provides a health check endpoint at `/_stcore/health`
+        
+        ## Monitoring
+        
+        Monitor the application using:
+        - Application logs
+        - Health check endpoint
+        - Streamlit built-in metrics
+        EOF
+    
+    - name: Upload deployment artifacts
+      uses: actions/upload-artifact@v3
+      with:
+        name: streamlit-deployment-${{ github.run_number }}
+        path: deployment/
+        retention-days: 30
+    
+    - name: Create deployment summary
+      run: |
+        echo "## 🚀 Deployment Summary" >> $GITHUB_STEP_SUMMARY
+        echo "" >> $GITHUB_STEP_SUMMARY
+        echo "**Environment:** ${{ github.event.inputs.deploy_environment || 'automatic' }}" >> $GITHUB_STEP_SUMMARY
+        echo "**Deployment Package:** streamlit-deployment-${{ github.run_number }}" >> $GITHUB_STEP_SUMMARY
+        echo "**Status:** ✅ Ready for deployment" >> $GITHUB_STEP_SUMMARY
+        echo "" >> $GITHUB_STEP_SUMMARY
+        echo "### 📦 Package Contents:" >> $GITHUB_STEP_SUMMARY
+        echo "- Streamlit application (app.py)" >> $GITHUB_STEP_SUMMARY
+        echo "- Docker configuration" >> $GITHUB_STEP_SUMMARY
+        echo "- Docker Compose setup" >> $GITHUB_STEP_SUMMARY
+        echo "- Deployment documentation" >> $GITHUB_STEP_SUMMARY
+        echo "- Startup scripts" >> $GITHUB_STEP_SUMMARY
+        echo "" >> $GITHUB_STEP_SUMMARY
+        echo "### 🌐 Deployment Options:" >> $GITHUB_STEP_SUMMARY
+        echo "- Local Docker deployment" >> $GITHUB_STEP_SUMMARY
+        echo "- Streamlit Cloud" >> $GITHUB_STEP_SUMMARY
+        echo "- Heroku" >> $GITHUB_STEP_SUMMARY
+        echo "- Cloud container services" >> $GITHUB_STEP_SUMMARY

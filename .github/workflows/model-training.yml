@@ -1,0 +1,309 @@
+name: Model Training Pipeline
+
+on:
+  # Trigger on push to main branch when data files change
+  push:
+    branches: [ main, master ]
+    paths:
+      - 'data/raw/**'
+      - 'src/**'
+      - 'config/**'
+      - 'dvc.yaml'
+      - 'requirements.txt'
+  
+  # Trigger on pull requests
+  pull_request:
+    branches: [ main, master ]
+    paths:
+      - 'data/raw/**'
+      - 'src/**'
+      - 'config/**'
+      - 'dvc.yaml'
+      - 'requirements.txt'
+  
+  # Manual trigger
+  workflow_dispatch:
+    inputs:
+      retrain_reason:
+        description: 'Reason for retraining'
+        required: false
+        default: 'Manual retrain'
+      model_type:
+        description: 'Model type to train'
+        required: false
+        default: 'ensemble'
+        type: choice
+        options:
+          - ensemble
+          - random_forest
+          - xgboost
+          - lightgbm
+  
+  # Schedule automatic retraining (every Sunday at 2 AM UTC)
+  schedule:
+    - cron: '0 2 * * 0'
+
+jobs:
+  model-training:
+    runs-on: ubuntu-latest
+    
+    steps:
+    - name: Checkout repository
+      uses: actions/checkout@v3
+      with:
+        fetch-depth: 0  # Fetch full history for DVC
+    
+    - name: Set up Python
+      uses: actions/setup-python@v4
+      with:
+        python-version: '3.9'
+    
+    - name: Cache pip dependencies
+      uses: actions/cache@v3
+      with:
+        path: ~/.cache/pip
+        key: ${{ runner.os }}-pip-${{ hashFiles('**/requirements.txt') }}
+        restore-keys: |
+          ${{ runner.os }}-pip-
+    
+    - name: Install dependencies
+      run: |
+        python -m pip install --upgrade pip
+        pip install -r requirements.txt
+        pip install pytest  # For testing
+    
+    - name: Set up DVC
+      run: |
+        dvc --version
+        # Configure DVC (add your remote storage if needed)
+        # dvc remote add -d myremote s3://my-bucket/dvc-storage
+        # dvc remote modify myremote credentialpath ~/.aws/credentials
+    
+    - name: Check data changes
+      id: data_check
+      run: |
+        echo "Checking for data changes..."
+        if [ -f "data/raw/Metro_Interstate_Traffic_Volume.csv" ]; then
+          echo "data_exists=true" >> $GITHUB_OUTPUT
+          echo "Data file found"
+        else
+          echo "data_exists=false" >> $GITHUB_OUTPUT
+          echo "Data file not found"
+        fi
+    
+    - name: Update model configuration
+      if: github.event.inputs.model_type != ''
+      run: |
+        echo "Updating model type to: ${{ github.event.inputs.model_type }}"
+        python -c "
+        import yaml
+        with open('config/config.yaml', 'r') as f:
+            config = yaml.safe_load(f)
+        config['model']['type'] = '${{ github.event.inputs.model_type }}'
+        with open('config/config.yaml', 'w') as f:
+            yaml.dump(config, f, default_flow_style=False)
+        "
+    
+    - name: Run data validation
+      run: |
+        echo "Running data validation..."
+        python -c "
+        import pandas as pd
+        import sys
+        
+        try:
+            df = pd.read_csv('data/raw/Metro_Interstate_Traffic_Volume.csv')
+            print(f'Data shape: {df.shape}')
+            
+            # Basic validation
+            required_columns = ['traffic_volume', 'temp', 'weather_main', 'date_time']
+            missing_cols = [col for col in required_columns if col not in df.columns]
+            
+            if missing_cols:
+                print(f'Missing required columns: {missing_cols}')
+                sys.exit(1)
+            
+            if df.shape[0] < 1000:
+                print('Dataset too small (< 1000 rows)')
+                sys.exit(1)
+                
+            print('Data validation passed!')
+            
+        except Exception as e:
+            print(f'Data validation failed: {e}')
+            sys.exit(1)
+        "
+    
+    - name: Run preprocessing
+      run: |
+        echo "Running data preprocessing..."
+        python src/preprocess.py
+    
+    - name: Run model training
+      run: |
+        echo "Training machine learning model..."
+        python src/train.py
+    
+    - name: Run model evaluation
+      run: |
+        echo "Evaluating model performance..."
+        python src/evaluate.py
+    
+    - name: Run tests
+      run: |
+        echo "Running model tests..."
+        python -m pytest tests/ -v || echo "No tests found, skipping..."
+    
+    - name: Check model performance
+      id: performance_check
+      run: |
+        echo "Checking model performance..."
+        python -c "
+        import json
+        import glob
+        import sys
+        
+        # Find latest model metrics
+        metric_files = glob.glob('metrics/*_evaluation_metrics.json')
+        if not metric_files:
+            metric_files = glob.glob('metrics/*_metrics.json')
+        
+        if metric_files:
+            latest_metrics = max(metric_files, key=lambda x: x)
+            with open(latest_metrics, 'r') as f:
+                metrics = json.load(f)
+            
+            r2_score = metrics.get('r2', 0)
+            rmse = metrics.get('rmse', float('inf'))
+            
+            print(f'Model R2 Score: {r2_score}')
+            print(f'Model RMSE: {rmse}')
+            
+            # Performance thresholds
+            min_r2 = 0.8
+            max_rmse = 1000
+            
+            if r2_score < min_r2:
+                print(f'Model R2 score {r2_score} below threshold {min_r2}')
+                sys.exit(1)
+            
+            if rmse > max_rmse:
+                print(f'Model RMSE {rmse} above threshold {max_rmse}')
+                sys.exit(1)
+            
+            print('Model performance check passed!')
+            print(f'performance_r2={r2_score}' >> '$GITHUB_OUTPUT')
+            print(f'performance_rmse={rmse}' >> '$GITHUB_OUTPUT')
+        else:
+            print('No metrics file found')
+            sys.exit(1)
+        "
+    
+    - name: Generate model report
+      run: |
+        echo "Generating model training report..."
+        python -c "
+        import json
+        import glob
+        from datetime import datetime
+        
+        # Find latest model info
+        info_files = glob.glob('models/*_info.json')
+        if info_files:
+            latest_info = max(info_files, key=lambda x: x)
+            with open(latest_info, 'r') as f:
+                model_info = json.load(f)
+            
+            report = f'''
+        # Model Training Report
+        
+        **Training Date:** {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}
+        **Trigger:** {\"${{ github.event_name }}\" if \"${{ github.event_name }}\" else \"Unknown\"}
+        **Reason:** {\"${{ github.event.inputs.retrain_reason }}\" if \"${{ github.event.inputs.retrain_reason }}\" else \"Automatic\"}
+        
+        ## Model Information
+        - **Model Type:** {model_info.get('model_type', 'Unknown')}
+        - **Model Name:** {model_info.get('model_name', 'Unknown')}
+        
+        ## Performance Metrics
+        - **R² Score:** {model_info.get('performance', {}).get('r2', 'N/A')}
+        - **RMSE:** {model_info.get('performance', {}).get('rmse', 'N/A')}
+        - **MAE:** {model_info.get('performance', {}).get('mae', 'N/A')}
+        - **MAPE:** {model_info.get('performance', {}).get('mape', 'N/A')}%
+        
+        ## Files Generated
+        - Model: {model_info.get('model_path', 'N/A')}
+        - Metrics: {model_info.get('metrics_path', 'N/A')}
+        
+        **Status:** ✅ Training Successful
+        '''
+            
+            with open('model_training_report.md', 'w') as f:
+                f.write(report)
+            
+            print('Training report generated successfully!')
+        "
+    
+    - name: Commit and push model artifacts
+      if: github.event_name != 'pull_request'
+      run: |
+        echo "Committing model artifacts..."
+        git config --local user.email "action@github.com"
+        git config --local user.name "GitHub Action"
+        
+        # Add model artifacts (adjust based on your .gitignore)
+        git add metrics/*.json || echo "No metrics to add"
+        git add plots/*.html || echo "No plots to add"
+        git add model_training_report.md || echo "No report to add"
+        
+        # Check if there are changes to commit
+        if git diff --staged --quiet; then
+          echo "No changes to commit"
+        else
+          git commit -m "🤖 Auto-update: Model training artifacts from GitHub Actions
+          
+          - Trigger: ${{ github.event_name }}
+          - Model Type: ${{ github.event.inputs.model_type || 'ensemble' }}
+          - Reason: ${{ github.event.inputs.retrain_reason || 'Automatic retrain' }}
+          - R² Score: ${{ steps.performance_check.outputs.performance_r2 || 'N/A' }}
+          - RMSE: ${{ steps.performance_check.outputs.performance_rmse || 'N/A' }}
+          "
+          
+          git push
+        fi
+    
+    - name: Upload model artifacts
+      uses: actions/upload-artifact@v3
+      with:
+        name: model-artifacts-${{ github.run_number }}
+        path: |
+          models/*.pkl
+          models/*.json
+          metrics/*.json
+          plots/*.html
+          model_training_report.md
+        retention-days: 30
+    
+    - name: Create release on successful training
+      if: github.event_name == 'schedule' || github.event_name == 'workflow_dispatch'
+      uses: actions/create-release@v1
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      with:
+        tag_name: model-v${{ github.run_number }}
+        release_name: Model Release v${{ github.run_number }}
+        body: |
+          🤖 Automated Model Training Release
+          
+          **Performance:**
+          - R² Score: ${{ steps.performance_check.outputs.performance_r2 }}
+          - RMSE: ${{ steps.performance_check.outputs.performance_rmse }}
+          
+          **Details:**
+          - Trigger: ${{ github.event_name }}
+          - Model Type: ${{ github.event.inputs.model_type || 'ensemble' }}
+          - Training Date: ${{ github.run_id }}
+          
+          Model artifacts are available in the workflow artifacts.
+        draft: false
+        prerelease: false

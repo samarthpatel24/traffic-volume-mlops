@@ -104,6 +104,119 @@ streamlit run app.py
 
 The application will be available at `http://localhost:8501`
 
+## 🤖 GitHub Actions CI/CD Pipeline
+
+This project includes comprehensive GitHub Actions workflows for MLOps automation:
+
+### 🔄 Automated Workflows
+
+#### 1. **Model Training Pipeline** (`model-training.yml`)
+**Triggers:**
+- Push to main/master branch (when data, code, or config changes)
+- Pull requests
+- Manual dispatch with configurable parameters
+- Scheduled runs (every Sunday at 2 AM UTC)
+
+**Features:**
+- Automatic model retraining on data changes
+- Configurable model types (ensemble, random_forest, xgboost, lightgbm)
+- Data validation and quality checks
+- Model performance validation
+- Automatic artifact storage and versioning
+- Model releases on successful training
+
+#### 2. **CI/CD Pipeline** (`ci-cd.yml`)
+**Triggers:**
+- Push to any branch
+- Pull requests
+
+**Features:**
+- Code linting with flake8
+- Code formatting checks with black
+- Import and configuration validation
+- Security scanning with safety
+- Dependency auditing
+
+#### 3. **Streamlit App Deployment** (`deploy-streamlit.yml`)
+**Triggers:**
+- Push to main/master (when app files change)
+- Manual dispatch with environment selection
+
+**Features:**
+- App testing and validation
+- Docker containerization
+- Multi-platform deployment packages
+- Deployment documentation generation
+
+#### 4. **Data Drift Monitoring** (`data-drift-monitoring.yml`)
+**Triggers:**
+- Daily scheduled runs (3 AM UTC)
+- Manual dispatch with configurable thresholds
+
+**Features:**
+- Statistical drift detection (KS test, Chi-square test)
+- Automated drift visualization
+- GitHub issue creation on drift detection
+- Automatic model retraining trigger on significant drift
+- Drift reports and monitoring artifacts
+
+### 🚀 Using GitHub Actions
+
+#### Manual Model Training
+```bash
+# Go to Actions tab in GitHub
+# Select "Model Training Pipeline"
+# Click "Run workflow"
+# Choose model type and provide reason
+```
+
+#### Manual Deployment
+```bash
+# Go to Actions tab in GitHub
+# Select "Deploy Streamlit App"
+# Click "Run workflow"
+# Choose deployment environment
+```
+
+#### Monitoring Data Drift
+```bash
+# Go to Actions tab in GitHub
+# Select "Data Drift Monitoring"
+# Click "Run workflow"
+# Set custom threshold if needed
+```
+
+### 📊 Automated MLOps Features
+
+- **🔄 Continuous Training**: Models retrain automatically when new data is pushed
+- **📈 Performance Monitoring**: Automatic validation against performance thresholds
+- **🚨 Drift Detection**: Daily monitoring with automatic alerts and retraining
+- **📦 Artifact Management**: Automatic storage and versioning of models and metrics
+- **🏷️ Model Releases**: Tagged releases with performance metrics
+- **📋 Issue Tracking**: Automatic issue creation for drift alerts and failures
+- **🐳 Containerization**: Docker support for consistent deployments
+
+### 🔧 Configuration
+
+#### Performance Thresholds
+Edit in `model-training.yml`:
+```yaml
+min_r2: 0.8        # Minimum R² score
+max_rmse: 1000     # Maximum RMSE
+```
+
+#### Drift Detection Sensitivity
+Edit in `data-drift-monitoring.yml`:
+```yaml
+threshold: 0.05    # Statistical significance level
+```
+
+#### Deployment Settings
+Edit in `deploy-streamlit.yml`:
+```yaml
+environments: [staging, production]
+```
+
 ## 📋 Usage
 
 ### Training New Models
@@ -256,6 +369,29 @@ python src/evaluate.py
    - Ensure models are trained
    - Check encoder files exist
    - Verify all dependencies installed
+
+4. **GitHub Actions Failures**:
+   - Check workflow logs in Actions tab
+   - Verify repository secrets are set
+   - Ensure required files are committed
+   - Check Python version compatibility
+
+### GitHub Actions Troubleshooting
+
+#### Model Training Workflow Issues
+- **Data validation fails**: Check data format and required columns
+- **Performance thresholds not met**: Review model configuration and data quality
+- **DVC errors**: Ensure proper DVC setup and file tracking
+
+#### Deployment Workflow Issues
+- **App import errors**: Check dependencies and Python imports
+- **Docker build fails**: Review Dockerfile and requirements
+- **Missing model files**: Ensure model training completed successfully
+
+#### Drift Detection Issues
+- **Statistical tests fail**: Check data formats and column types
+- **Visualization errors**: Ensure matplotlib and seaborn are available
+- **Issue creation fails**: Check repository permissions and GitHub token
 
 ### Getting Help
 

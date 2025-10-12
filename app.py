@@ -121,14 +121,42 @@ def main():
         st.subheader("Time Conditions")
         
         date_input = st.date_input("Date", value=datetime.now().date())
-        time_input = st.time_input("Time", value=datetime.now().time())
         
-        # Combine date and time
-        datetime_input = datetime.combine(date_input, time_input)
+        # Give user choice of input method
+        time_input_method = st.radio("Choose time input method:", 
+                                   ["Select Hour (0-23)", "Common Times", "Custom Time"], 
+                                   index=0)
+        
+        if time_input_method == "Select Hour (0-23)":
+            hour_input = st.selectbox("Hour", options=list(range(24)), index=datetime.now().hour)
+            datetime_input = datetime.combine(date_input, datetime.min.time()).replace(hour=hour_input)
+        elif time_input_method == "Common Times":
+            common_times = {
+                "Early Morning (6:00 AM)": 6,
+                "Morning Rush (8:00 AM)": 8,
+                "Mid Morning (10:00 AM)": 10,
+                "Lunch Time (12:00 PM)": 12,
+                "Afternoon (2:00 PM)": 14,
+                "Evening Rush (5:00 PM)": 17,
+                "Evening Rush (6:00 PM)": 18,
+                "Night (8:00 PM)": 20,
+                "Late Night (11:00 PM)": 23
+            }
+            selected_time = st.selectbox("Select Common Time", list(common_times.keys()), index=4)
+            hour_input = common_times[selected_time]
+            datetime_input = datetime.combine(date_input, datetime.min.time()).replace(hour=hour_input)
+        else:
+            # Custom time with sliders
+            hour_input = st.slider("Hour", min_value=0, max_value=23, value=datetime.now().hour, step=1)
+            minute_input = st.slider("Minute", min_value=0, max_value=59, value=0, step=15)
+            datetime_input = datetime.combine(date_input, datetime.min.time()).replace(hour=hour_input, minute=minute_input)
         
         hour = datetime_input.hour
         day_of_week = datetime_input.weekday()
         month = datetime_input.month
+        
+        # Display selected datetime
+        st.info(f"**Selected Date & Time:** {datetime_input.strftime('%Y-%m-%d %H:%M')}")
         
         # Other conditions
         st.subheader("Other Conditions")
