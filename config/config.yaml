@@ -1,0 +1,54 @@
+data:
+  raw_path: 'data/raw/Metro_Interstate_Traffic_Volume.csv'
+  processed_path: 'data/processed/'
+  
+model:
+  name: 'traffic_volume_predictor'
+  type: 'ensemble'  # can be 'random_forest', 'xgboost', 'lightgbm', 'ensemble'
+  random_state: 42
+  
+  # Random Forest parameters
+  random_forest:
+    n_estimators: 100
+    max_depth: 15
+    min_samples_split: 5
+    min_samples_leaf: 2
+    
+  # XGBoost parameters
+  xgboost:
+    n_estimators: 100
+    max_depth: 6
+    learning_rate: 0.1
+    subsample: 0.8
+    colsample_bytree: 0.8
+    
+  # LightGBM parameters
+  lightgbm:
+    n_estimators: 100
+    max_depth: 6
+    learning_rate: 0.1
+    num_leaves: 31
+    feature_fraction: 0.8
+    bagging_fraction: 0.8
+    
+training:
+  test_size: 0.2
+  validation_size: 0.2
+  cv_folds: 5
+  
+evaluation:
+  metrics:
+    - 'mae'
+    - 'mse'
+    - 'rmse'
+    - 'r2'
+    - 'mape'
+    
+paths:
+  models: 'models/'
+  metrics: 'metrics/'
+  plots: 'plots/'
+  
+logging:
+  level: 'INFO'
+  format: '%(asctime)s - %(name)s - %(levelname)s - %(message)s'

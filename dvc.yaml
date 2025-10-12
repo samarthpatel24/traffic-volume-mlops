@@ -1,0 +1,41 @@
+stages:
+  preprocess:
+    cmd: python src/preprocess.py
+    deps:
+    - data/raw/Metro_Interstate_Traffic_Volume.csv
+    - src/preprocess.py
+    - config/config.yaml
+    outs:
+    - data/processed/train.csv
+    - data/processed/test.csv
+    - data/processed/feature_names.txt
+    - models/weather_main_encoder.pkl
+    - models/weather_description_encoder.pkl
+    - models/feature_scaler.pkl
+    
+  train:
+    cmd: python src/train.py
+    deps:
+    - data/processed/train.csv
+    - data/processed/test.csv
+    - data/processed/feature_names.txt
+    - src/train.py
+    - config/config.yaml
+    - models/weather_main_encoder.pkl
+    - models/weather_description_encoder.pkl
+    - models/feature_scaler.pkl
+    outs:
+    - models/
+    metrics:
+    - metrics/
+    
+  evaluate:
+    cmd: python src/evaluate.py
+    deps:
+    - src/evaluate.py
+    - data/processed/test.csv
+    - models/
+    outs:
+    - plots/
+    metrics:
+    - metrics/
