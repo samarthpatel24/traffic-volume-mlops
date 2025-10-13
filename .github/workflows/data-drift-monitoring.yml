@@ -22,10 +22,10 @@ jobs:
     
     steps:
     - name: Checkout repository
-      uses: actions/checkout@v3
+      uses: actions/checkout@v4
     
     - name: Set up Python
-      uses: actions/setup-python@v4
+      uses: actions/setup-python@v5
       with:
         python-version: '3.9'
     
@@ -189,17 +189,21 @@ jobs:
                 print("\n🚨 DRIFT ALERT: Data drift detected! Consider retraining the model.")
                 
                 # Set GitHub Actions output
-                with open('GITHUB_OUTPUT', 'a') if 'GITHUB_OUTPUT' in os.environ else open('/dev/null', 'w') as f:
-                    f.write(f"drift_detected=true\n")
-                    f.write(f"features_with_drift={report['features_with_drift']}\n")
+                import os
+                if 'GITHUB_OUTPUT' in os.environ:
+                    with open(os.environ['GITHUB_OUTPUT'], 'a') as f:
+                        f.write(f"drift_detected=true\n")
+                        f.write(f"features_with_drift={report['features_with_drift']}\n")
                 
                 return 1
             else:
                 print("\n✅ No significant drift detected.")
                 
-                with open('GITHUB_OUTPUT', 'a') if 'GITHUB_OUTPUT' in os.environ else open('/dev/null', 'w') as f:
-                    f.write(f"drift_detected=false\n")
-                    f.write(f"features_with_drift=0\n")
+                import os
+                if 'GITHUB_OUTPUT' in os.environ:
+                    with open(os.environ['GITHUB_OUTPUT'], 'a') as f:
+                        f.write(f"drift_detected=false\n")
+                        f.write(f"features_with_drift=0\n")
                 
                 return 0
         
@@ -295,7 +299,7 @@ jobs:
         python create_drift_plots.py
     
     - name: Upload drift report
-      uses: actions/upload-artifact@v3
+      uses: actions/upload-artifact@v4
       with:
         name: drift-report-${{ github.run_number }}
         path: |
@@ -305,7 +309,7 @@ jobs:
     
     - name: Create issue on drift detection
       if: steps.drift_check.outputs.drift_detected == 'true'
-      uses: actions/github-script@v6
+      uses: actions/github-script@v7
       with:
         script: |
           const fs = require('fs');
@@ -352,7 +356,7 @@ jobs:
     
     - name: Trigger model retraining on significant drift
       if: steps.drift_check.outputs.drift_detected == 'true' && steps.drift_check.outputs.features_with_drift > 2
-      uses: actions/github-script@v6
+      uses: actions/github-script@v7
       with:
         script: |
           github.rest.actions.createWorkflowDispatch({

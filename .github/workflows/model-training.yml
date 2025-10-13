@@ -49,17 +49,17 @@ jobs:
     
     steps:
     - name: Checkout repository
-      uses: actions/checkout@v3
+      uses: actions/checkout@v4
       with:
         fetch-depth: 0  # Fetch full history for DVC
     
     - name: Set up Python
-      uses: actions/setup-python@v4
+      uses: actions/setup-python@v5
       with:
         python-version: '3.9'
     
     - name: Cache pip dependencies
-      uses: actions/cache@v3
+      uses: actions/cache@v4
       with:
         path: ~/.cache/pip
         key: ${{ runner.os }}-pip-${{ hashFiles('**/requirements.txt') }}
@@ -192,8 +192,11 @@ jobs:
                 sys.exit(1)
             
             print('Model performance check passed!')
-            print(f'performance_r2={r2_score}' >> '$GITHUB_OUTPUT')
-            print(f'performance_rmse={rmse}' >> '$GITHUB_OUTPUT')
+            
+            import os
+            with open(os.environ['GITHUB_OUTPUT'], 'a') as f:
+                f.write(f'performance_r2={r2_score}\n')
+                f.write(f'performance_rmse={rmse}\n')
         else:
             print('No metrics file found')
             sys.exit(1)
@@ -273,7 +276,7 @@ jobs:
         fi
     
     - name: Upload model artifacts
-      uses: actions/upload-artifact@v3
+      uses: actions/upload-artifact@v4
       with:
         name: model-artifacts-${{ github.run_number }}
         path: |
@@ -286,12 +289,12 @@ jobs:
     
     - name: Create release on successful training
       if: github.event_name == 'schedule' || github.event_name == 'workflow_dispatch'
-      uses: actions/create-release@v1
+      uses: softprops/action-gh-release@v2
       env:
         GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
       with:
         tag_name: model-v${{ github.run_number }}
-        release_name: Model Release v${{ github.run_number }}
+        name: Model Release v${{ github.run_number }}
         body: |
           🤖 Automated Model Training Release
           
