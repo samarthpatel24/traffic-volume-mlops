@@ -160,13 +160,10 @@ cython_debug/
 .idea/
 
 # DVC  
-# Allow data and models for deployment
-# /data/raw/Metro_Interstate_Traffic_Volume.csv  # Allow for CI/CD
+# Data and models are now tracked for deployment
 /data/processed/
-# /models/*.pkl  # Allow models (using Git LFS)
-# /models/*.json  # Allow model info
-# /metrics/  # Allow metrics
-/plots/
+# Models, metrics, and plots are now allowed
+# /plots/
 
 # Logs
 *.log
