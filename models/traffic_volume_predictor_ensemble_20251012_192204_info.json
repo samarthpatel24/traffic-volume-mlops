@@ -1,0 +1,14 @@
+{
+  "model_name": "traffic_volume_predictor_ensemble_20251012_192204",
+  "model_type": "ensemble",
+  "timestamp": "20251012_192204",
+  "model_path": "models/traffic_volume_predictor_ensemble_20251012_192204.pkl",
+  "metrics_path": "metrics/traffic_volume_predictor_ensemble_20251012_192204_metrics.json",
+  "performance": {
+    "mae": 248.84423673608353,
+    "mse": 181607.459475783,
+    "rmse": 426.154267227002,
+    "r2": 0.9545745785839994,
+    "mape": 48.35415653055155
+  }
+}

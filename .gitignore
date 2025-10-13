@@ -159,12 +159,13 @@ cython_debug/
 #  unless explicitly required. Only add the ignored files.
 .idea/
 
-# DVC
-/data/raw/Metro_Interstate_Traffic_Volume.csv
+# DVC  
+# Allow data and models for deployment
+# /data/raw/Metro_Interstate_Traffic_Volume.csv  # Allow for CI/CD
 /data/processed/
-/models/*.pkl
-/models/*.json
-/metrics/
+# /models/*.pkl  # Allow models (using Git LFS)
+# /models/*.json  # Allow model info
+# /metrics/  # Allow metrics
 /plots/
 
 # Logs
