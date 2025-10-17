@@ -1,0 +1,14 @@
+{
+  "model_name": "traffic_volume_predictor_xgboost_20251013_123354",
+  "model_type": "xgboost",
+  "timestamp": "20251013_123354",
+  "model_path": "models/traffic_volume_predictor_xgboost_20251013_123354.pkl",
+  "metrics_path": "metrics/traffic_volume_predictor_xgboost_20251013_123354_metrics.json",
+  "performance": {
+    "mae": 257.85992431640625,
+    "mse": 188732.515625,
+    "rmse": 434.4335572040908,
+    "r2": 0.9527924060821533,
+    "mape": 45.80631463107841
+  }
+}

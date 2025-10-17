@@ -103,6 +103,9 @@ def create_prediction_plots(y_test, y_pred, model_name):
     # Save plot
     fig.write_html(f'plots/{model_name}_evaluation.html')
     
+    # Also save with consistent name for DVC tracking
+    fig.write_html('plots/evaluation_plots.html')
+    
     return fig
 
 def create_feature_importance_plot(feature_importance_path, model_name):
@@ -124,6 +127,9 @@ def create_feature_importance_plot(feature_importance_path, model_name):
     
     fig.update_layout(height=500, yaxis={'categoryorder':'total ascending'})
     fig.write_html(f'plots/{model_name}_feature_importance.html')
+    
+    # Also save with consistent name for DVC tracking
+    fig.write_html('plots/feature_importance.html')
     
     return fig
 
@@ -171,6 +177,9 @@ def create_time_series_analysis(model_path, model_name):
     
     fig.write_html(f'plots/{model_name}_time_series.html')
     
+    # Also save with consistent name for DVC tracking
+    fig.write_html('plots/time_series_analysis.html')
+    
     return fig
 
 def generate_evaluation_report(model_path, model_info_path):
@@ -203,6 +212,10 @@ def generate_evaluation_report(model_path, model_info_path):
     # Save updated metrics
     metrics_path = f"metrics/{model_name}_evaluation_metrics.json"
     with open(metrics_path, 'w') as f:
+        json.dump(metrics, f, indent=2)
+    
+    # Also save with consistent name for DVC tracking
+    with open('metrics/evaluation_metrics.json', 'w') as f:
         json.dump(metrics, f, indent=2)
     
     # Generate summary report
@@ -249,20 +262,17 @@ Generated on: {pd.Timestamp.now().strftime('%Y-%m-%d %H:%M:%S')}
 
 def evaluate_latest_model():
     """Evaluate the most recently trained model"""
-    # Find the latest model
-    model_files = [f for f in os.listdir('models') if f.endswith('_info.json')]
-    if not model_files:
-        print("No trained models found!")
-        return
+    # Use the latest model files for DVC tracking
+    model_path = 'models/latest_model.pkl'
+    model_info_path = 'models/latest_model_info.json'
     
-    latest_model_info = max(model_files, key=lambda x: os.path.getctime(f'models/{x}'))
-    model_info_path = f'models/{latest_model_info}'
+    if not os.path.exists(model_path) or not os.path.exists(model_info_path):
+        print("Latest model files not found! Please run training first.")
+        return
     
     # Load model info
     with open(model_info_path, 'r') as f:
         model_info = json.load(f)
-    
-    model_path = model_info['model_path']
     
     print(f"Evaluating model: {model_info['model_name']}")
     

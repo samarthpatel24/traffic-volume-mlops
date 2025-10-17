@@ -1,0 +1,126 @@
+schema: '2.0'
+stages:
+  preprocess:
+    cmd: python src/preprocess.py
+    deps:
+    - path: config/config.yaml
+      hash: md5
+      md5: 5e70dc781a4a2d348a688715e0c1c77f
+      size: 1075
+    - path: data/raw/Metro_Interstate_Traffic_Volume.csv
+      hash: md5
+      md5: 81486c20a25455cd206e9b36c8c7c859
+      size: 2905056
+    - path: src/preprocess.py
+      hash: md5
+      md5: c519eb96e8a39f40df497bbb740f59a6
+      size: 6290
+    outs:
+    - path: data/processed/feature_names.txt
+      hash: md5
+      md5: a7da43190f43e3dbe0ea895f5c085adb
+      size: 198
+    - path: data/processed/test.csv
+      hash: md5
+      md5: 7f1d65600e782f24173baeeac11deb31
+      size: 2588147
+    - path: data/processed/train.csv
+      hash: md5
+      md5: 35af0ba0bbda74fcf340ff9d42880b83
+      size: 10350511
+    - path: models/feature_scaler.pkl
+      hash: md5
+      md5: 2df347fe2a88354bea720bce19ffeee7
+      size: 1415
+    - path: models/weather_description_encoder.pkl
+      hash: md5
+      md5: e32e1161de44c3eab073d8569d626e23
+      size: 1185
+    - path: models/weather_main_encoder.pkl
+      hash: md5
+      md5: c3c4118e9bea092bf474c3eb674d42d6
+      size: 566
+  train:
+    cmd: python src/train.py
+    deps:
+    - path: config/config.yaml
+      hash: md5
+      md5: 5e70dc781a4a2d348a688715e0c1c77f
+      size: 1075
+    - path: data/processed/feature_names.txt
+      hash: md5
+      md5: a7da43190f43e3dbe0ea895f5c085adb
+      size: 198
+    - path: data/processed/test.csv
+      hash: md5
+      md5: 7f1d65600e782f24173baeeac11deb31
+      size: 2588147
+    - path: data/processed/train.csv
+      hash: md5
+      md5: 35af0ba0bbda74fcf340ff9d42880b83
+      size: 10350511
+    - path: models/feature_scaler.pkl
+      hash: md5
+      md5: 2df347fe2a88354bea720bce19ffeee7
+      size: 1415
+    - path: models/weather_description_encoder.pkl
+      hash: md5
+      md5: e32e1161de44c3eab073d8569d626e23
+      size: 1185
+    - path: models/weather_main_encoder.pkl
+      hash: md5
+      md5: c3c4118e9bea092bf474c3eb674d42d6
+      size: 566
+    - path: src/train.py
+      hash: md5
+      md5: 3208a6374e66e8fde3218189d8502925
+      size: 10622
+    outs:
+    - path: metrics/latest_metrics.json
+      hash: md5
+      md5: b993ec409a812fb47c1b75c8fff1e3ef
+      size: 147
+    - path: models/latest_model.pkl
+      hash: md5
+      md5: 6308536aab638486a0e8bc724388e9de
+      size: 466173
+    - path: models/latest_model_info.json
+      hash: md5
+      md5: b1218195512ad8a20376d10d90f7ac35
+      size: 486
+  evaluate:
+    cmd: python src/evaluate.py
+    deps:
+    - path: data/processed/test.csv
+      hash: md5
+      md5: 7f1d65600e782f24173baeeac11deb31
+      size: 2588147
+    - path: models/latest_model.pkl
+      hash: md5
+      md5: 6308536aab638486a0e8bc724388e9de
+      size: 466173
+    - path: models/latest_model_info.json
+      hash: md5
+      md5: b1218195512ad8a20376d10d90f7ac35
+      size: 486
+    - path: src/evaluate.py
+      hash: md5
+      md5: 4d8fe800f1e7d9f9a4cc3b79fc7d3bf3
+      size: 9817
+    outs:
+    - path: metrics/evaluation_metrics.json
+      hash: md5
+      md5: b993ec409a812fb47c1b75c8fff1e3ef
+      size: 147
+    - path: plots/evaluation_plots.html
+      hash: md5
+      md5: c89bd7ee66f05223044c9747e2606cca
+      size: 5120255
+    - path: plots/feature_importance.html
+      hash: md5
+      md5: 7e3cb3c8030019269776113d542b97ba
+      size: 4776277
+    - path: plots/time_series_analysis.html
+      hash: md5
+      md5: 476fb9c9c6ddddb983c20f6ff709227a
+      size: 4784131

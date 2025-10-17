@@ -200,14 +200,23 @@ def save_model_and_metrics(model, metrics, feature_importance, config):
     timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
     model_name = f"{config['model']['name']}_{config['model']['type']}_{timestamp}"
     
-    # Save model
+    # Save model with timestamp
     model_path = f"models/{model_name}.pkl"
     joblib.dump(model, model_path)
+    
+    # Save model as latest (for DVC tracking)
+    latest_model_path = "models/latest_model.pkl"
+    joblib.dump(model, latest_model_path)
     
     # Save metrics
     os.makedirs('metrics', exist_ok=True)
     metrics_path = f"metrics/{model_name}_metrics.json"
     with open(metrics_path, 'w') as f:
+        json.dump(metrics, f, indent=2)
+    
+    # Save latest metrics (for DVC tracking)
+    latest_metrics_path = "metrics/latest_metrics.json"
+    with open(latest_metrics_path, 'w') as f:
         json.dump(metrics, f, indent=2)
     
     # Save feature importance
@@ -227,6 +236,11 @@ def save_model_and_metrics(model, metrics, feature_importance, config):
     
     info_path = f"models/{model_name}_info.json"
     with open(info_path, 'w') as f:
+        json.dump(model_info, f, indent=2)
+    
+    # Save latest model info (for DVC tracking)
+    latest_info_path = "models/latest_model_info.json"
+    with open(latest_info_path, 'w') as f:
         json.dump(model_info, f, indent=2)
     
     return model_path, model_info

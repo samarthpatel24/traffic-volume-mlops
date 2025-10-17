@@ -1,23 +1,48 @@
 # 🚗 Traffic Volume Prediction MLOps Project
 
-A complete MLOps pipeline for predicting highway traffic volume using weather and time data with DVC, Python, and Streamlit.
+A complete MLOps pipeline for predicting highway traffic volume using weather and time data with DVC, Docker, CI/CD, and AWS deployment.
 
 ## 📊 Project Overview
 
-Predicts interstate traffic volume using machine learning with automated pipelines, multiple models (Random Forest, XGBoost, LightGBM), and a Streamlit web interface.
+This project implements an end-to-end MLOps solution for predicting interstate traffic volume using machine learning. It features automated pipelines, multiple models (Random Forest, XGBoost, LightGBM, Ensemble), containerization with Docker, and cloud deployment on AWS.
+
+## 🚀 Key Features
+
+- **Complete MLOps Pipeline**: DVC for data versioning and pipeline orchestration
+- **Multiple ML Models**: XGBoost, Random Forest, LightGBM, and Ensemble methods
+- **Interactive Web App**: Streamlit-based user interface for predictions
+- **Containerization**: Docker and Docker Compose for easy deployment
+- **CI/CD Pipeline**: GitHub Actions for automated testing and deployment
+- **Cloud Deployment**: AWS EC2 and S3 integration with automated deployment
+- **Monitoring**: Health checks, logging, and performance metrics
 
 ## 🏗️ Project Structure
 
 ```
 traffic-volume-predictor/
-├── data/                            # Raw and processed data
-├── src/                             # ML pipeline scripts
-├── models/                          # Trained models
-├── metrics/                         # Evaluation results
-├── config/config.yaml               # Configuration
-├── app.py                          # Streamlit web app
-├── dvc.yaml                        # DVC pipeline
-└── requirements.txt                # Dependencies
+├── app.py                          # Streamlit web application
+├── dvc.yaml                        # DVC pipeline configuration  
+├── Dockerfile                      # Container configuration
+├── docker-compose.yml              # Local development setup
+├── requirements.txt                # Python dependencies
+├── DEPLOYMENT_GUIDE.md             # Complete deployment guide
+├── data/                           # Raw and processed data
+│   ├── raw/                        # Original dataset
+│   └── processed/                  # Preprocessed data
+├── src/                            # ML pipeline source code
+│   ├── preprocess.py               # Data preprocessing
+│   ├── train.py                    # Model training
+│   └── evaluate.py                 # Model evaluation
+├── models/                         # Trained model artifacts
+├── metrics/                        # Performance metrics and reports
+├── plots/                          # Generated visualizations
+├── config/                         # Configuration files
+│   └── config.yaml                 # Model and pipeline config
+├── tests/                          # Unit tests
+├── .github/workflows/              # CI/CD pipeline configuration
+├── aws/                           # AWS deployment templates
+├── scripts/                       # Deployment automation scripts
+└── notebooks/                     # Jupyter notebooks for exploration
 ```
 
 ## � Quick Start

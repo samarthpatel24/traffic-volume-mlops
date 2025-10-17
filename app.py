@@ -7,7 +7,12 @@ import plotly.express as px
 from datetime import datetime, timedelta
 import os
 import json
+import sys
 from sklearn.preprocessing import StandardScaler, LabelEncoder
+
+# Add src directory to path to import model selector
+sys.path.append('src')
+from model_selector import ModelSelector
 
 # Page configuration
 st.set_page_config(
@@ -19,28 +24,42 @@ st.set_page_config(
 
 @st.cache_resource
 def load_model_and_encoders():
-    """Load the trained model and encoders"""
+    """Load the best performing model and encoders using intelligent selection"""
     try:
-        # Find the latest model
-        model_files = [f for f in os.listdir('models') if f.endswith('_info.json')]
-        if not model_files:
-            return None, None, None, None, "No trained models found!"
+        # Initialize model selector
+        selector = ModelSelector()
         
-        latest_model_info = max(model_files, key=lambda x: os.path.getctime(f'models/{x}'))
+        # Define selection criteria - prioritize R² and RMSE
+        selection_criteria = {
+            'primary_metric': 'r2',
+            'secondary_metric': 'rmse',
+            'min_r2': 0.90,  # Minimum R² of 90%
+            'max_rmse': 450,  # Maximum RMSE of 450
+            'weights': {
+                'r2': 0.5,      # 50% weight to R²
+                'rmse': 0.3,    # 30% weight to RMSE  
+                'mae': 0.2      # 20% weight to MAE
+            }
+        }
         
-        # Load model info
-        with open(f'models/{latest_model_info}', 'r') as f:
-            model_info = json.load(f)
+        # Select best model
+        best_model_info = selector.select_best_model(selection_criteria)
         
-        # Load model
-        model = joblib.load(model_info['model_path'])
+        if not best_model_info:
+            return None, None, None, None, "No suitable models found!"
+        
+        # Load the selected model
+        model = joblib.load(best_model_info['model_path'])
         
         # Load encoders and scaler
         weather_main_encoder = joblib.load('models/weather_main_encoder.pkl')
         weather_desc_encoder = joblib.load('models/weather_description_encoder.pkl')
         scaler = joblib.load('models/feature_scaler.pkl')
         
-        return model, weather_main_encoder, weather_desc_encoder, scaler, model_info
+        # Add selection info to model_info
+        best_model_info['selection_reason'] = f"Selected based on R² ≥ {selection_criteria['min_r2']:.2f} and RMSE ≤ {selection_criteria['max_rmse']}"
+        
+        return model, weather_main_encoder, weather_desc_encoder, scaler, best_model_info
     
     except Exception as e:
         return None, None, None, None, f"Error loading model: {str(e)}"
@@ -66,7 +85,9 @@ def get_weather_severity(weather_main):
 
 def main():
     st.title("🚗 Traffic Volume Predictor")
-    st.markdown("---")
+    
+    # Create tabs for different functionalities
+    tab1, tab2, tab3 = st.tabs(["🎯 Prediction", "📊 Model Comparison", "⚙️ Model Selection"])
     
     # Load model and encoders
     model, weather_main_encoder, weather_desc_encoder, scaler, model_info = load_model_and_encoders()
@@ -75,6 +96,21 @@ def main():
         st.error(model_info)  # This contains the error message
         st.info("Please run the training pipeline first by executing: `dvc repro`")
         return
+    
+    with tab1:
+        # Existing prediction functionality
+        prediction_tab(model, weather_main_encoder, weather_desc_encoder, scaler, model_info)
+    
+    with tab2:
+        # Model comparison functionality
+        model_comparison_tab()
+    
+    with tab3:
+        # Model selection settings
+        model_selection_tab()
+
+def prediction_tab(model, weather_main_encoder, weather_desc_encoder, scaler, model_info):
+    """Tab for traffic volume prediction"""
     
     # Display model information
     st.sidebar.header("📊 Model Information")
@@ -302,6 +338,231 @@ def main():
     </div>
     """.format(model_info['performance']['r2'], model_info['performance']['rmse']), 
     unsafe_allow_html=True)
+
+def model_comparison_tab():
+    """Tab for comparing different models"""
+    st.header("📊 Model Performance Comparison")
+    
+    # Initialize model selector
+    selector = ModelSelector()
+    
+    # Get comparison dataframe
+    comparison_df = selector.compare_models()
+    
+    if comparison_df.empty:
+        st.warning("No models found for comparison.")
+        return
+    
+    # Display model comparison table
+    st.subheader("📋 Model Comparison Table")
+    st.dataframe(comparison_df, use_container_width=True)
+    
+    # Performance metrics visualization
+    if len(comparison_df) > 1:
+        st.subheader("📈 Performance Metrics Visualization")
+        
+        col1, col2 = st.columns(2)
+        
+        with col1:
+            # R² Score comparison
+            fig_r2 = px.bar(
+                comparison_df, 
+                x='Model Name', 
+                y='R² Score',
+                title="R² Score Comparison (Higher is Better)",
+                color='R² Score',
+                color_continuous_scale='Viridis'
+            )
+            fig_r2.update_xaxis(tickangle=45)
+            st.plotly_chart(fig_r2, use_container_width=True)
+        
+        with col2:
+            # RMSE comparison
+            fig_rmse = px.bar(
+                comparison_df, 
+                x='Model Name', 
+                y='RMSE',
+                title="RMSE Comparison (Lower is Better)",
+                color='RMSE',
+                color_continuous_scale='Viridis_r'
+            )
+            fig_rmse.update_xaxis(tickangle=45)
+            st.plotly_chart(fig_rmse, use_container_width=True)
+        
+        # Performance overview scatter plot
+        st.subheader("🎯 R² vs RMSE Scatter Plot")
+        fig_scatter = px.scatter(
+            comparison_df,
+            x='RMSE',
+            y='R² Score',
+            size='MAE',
+            hover_data=['Model Name', 'Model Type'],
+            title="Model Performance Overview (Top-right is best)",
+            labels={'RMSE': 'RMSE (Lower is Better)', 'R² Score': 'R² Score (Higher is Better)'}
+        )
+        st.plotly_chart(fig_scatter, use_container_width=True)
+    
+    # Model selection recommendations
+    st.subheader("🏆 Model Selection Recommendations")
+    
+    # Get best model for different criteria
+    best_r2_model = comparison_df.loc[comparison_df['R² Score'].idxmax()] if 'R² Score' in comparison_df.columns else None
+    best_rmse_model = comparison_df.loc[comparison_df['RMSE'].idxmin()] if 'RMSE' in comparison_df.columns else None
+    
+    col1, col2, col3 = st.columns(3)
+    
+    with col1:
+        if best_r2_model is not None:
+            st.metric(
+                "🎯 Best R² Score",
+                f"{best_r2_model['R² Score']:.4f}",
+                delta=f"{best_r2_model['Model Name']}"
+            )
+    
+    with col2:
+        if best_rmse_model is not None:
+            st.metric(
+                "📉 Lowest RMSE",
+                f"{best_rmse_model['RMSE']:.2f}",
+                delta=f"{best_rmse_model['Model Name']}"
+            )
+    
+    with col3:
+        # Current model being used
+        current_selector = ModelSelector()
+        current_model = current_selector.select_best_model()
+        if current_model:
+            st.metric(
+                "🚀 Currently Selected",
+                f"R²: {current_model['metrics'].get('r2', 'N/A'):.4f}",
+                delta=f"{current_model['model_name']}"
+            )
+
+def model_selection_tab():
+    """Tab for configuring model selection criteria"""
+    st.header("⚙️ Model Selection Configuration")
+    
+    # Initialize model selector
+    selector = ModelSelector()
+    
+    # Get current configuration recommendations
+    recommended_config = selector.get_model_selection_config()
+    
+    st.subheader("🎛️ Selection Criteria")
+    
+    col1, col2 = st.columns(2)
+    
+    with col1:
+        st.markdown("**Primary Metrics**")
+        primary_metric = st.selectbox(
+            "Primary Metric for Ranking",
+            options=['r2', 'rmse', 'mae', 'mape'],
+            index=0,
+            help="Main metric used for model ranking"
+        )
+        
+        secondary_metric = st.selectbox(
+            "Secondary Metric (tie-breaker)",
+            options=['rmse', 'mae', 'mape', 'r2'],
+            index=0,
+            help="Metric used for tie-breaking when primary metrics are similar"
+        )
+    
+    with col2:
+        st.markdown("**Quality Thresholds**")
+        min_r2 = st.slider(
+            "Minimum R² Score",
+            min_value=0.0,
+            max_value=1.0,
+            value=recommended_config.get('min_r2', 0.90),
+            step=0.01,
+            help="Minimum acceptable R² score for model selection"
+        )
+        
+        max_rmse = st.slider(
+            "Maximum RMSE",
+            min_value=0,
+            max_value=1000,
+            value=int(recommended_config.get('max_rmse', 450)),
+            step=10,
+            help="Maximum acceptable RMSE for model selection"
+        )
+        
+        max_mape = st.slider(
+            "Maximum MAPE (%)",
+            min_value=0,
+            max_value=100,
+            value=50,
+            step=1,
+            help="Maximum acceptable MAPE percentage"
+        )
+    
+    # Advanced settings
+    with st.expander("🔧 Advanced Weighting (Optional)"):
+        st.markdown("**Custom Metric Weights for Composite Scoring**")
+        use_weights = st.checkbox("Enable composite scoring with custom weights")
+        
+        if use_weights:
+            col1, col2, col3 = st.columns(3)
+            with col1:
+                r2_weight = st.slider("R² Weight", 0.0, 1.0, 0.5, 0.1)
+            with col2:
+                rmse_weight = st.slider("RMSE Weight", 0.0, 1.0, 0.3, 0.1)
+            with col3:
+                mae_weight = st.slider("MAE Weight", 0.0, 1.0, 0.2, 0.1)
+            
+            total_weight = r2_weight + rmse_weight + mae_weight
+            if total_weight > 0:
+                st.info(f"Total weight: {total_weight:.1f} (weights will be normalized)")
+    
+    # Test the configuration
+    st.subheader("🧪 Test Configuration")
+    
+    if st.button("🔍 Preview Model Selection with Current Settings"):
+        # Build selection criteria
+        selection_criteria = {
+            'primary_metric': primary_metric,
+            'secondary_metric': secondary_metric,
+            'min_r2': min_r2,
+            'max_rmse': max_rmse,
+            'max_mape': max_mape
+        }
+        
+        if use_weights and 'r2_weight' in locals():
+            selection_criteria['weights'] = {
+                'r2': r2_weight,
+                'rmse': rmse_weight,
+                'mae': mae_weight
+            }
+        
+        # Test selection
+        try:
+            selected_model = selector.select_best_model(selection_criteria, fallback_to_latest=False)
+            
+            if selected_model:
+                st.success(f"✅ **Selected Model:** {selected_model['model_name']}")
+                
+                col1, col2, col3 = st.columns(3)
+                with col1:
+                    st.metric("R² Score", f"{selected_model['metrics'].get('r2', 'N/A'):.4f}")
+                with col2:
+                    st.metric("RMSE", f"{selected_model['metrics'].get('rmse', 'N/A'):.2f}")
+                with col3:
+                    st.metric("MAE", f"{selected_model['metrics'].get('mae', 'N/A'):.2f}")
+                
+                st.info(f"**Model Type:** {selected_model.get('model_type', 'Unknown')}")
+                st.info(f"**Created:** {datetime.fromtimestamp(selected_model['created_at']).strftime('%Y-%m-%d %H:%M:%S')}")
+            else:
+                st.error("❌ No models meet the specified criteria")
+                st.warning("Consider relaxing the thresholds or check if models are properly trained")
+                
+        except Exception as e:
+            st.error(f"Error testing configuration: {str(e)}")
+    
+    # Save configuration option
+    if st.button("💾 Apply Configuration (Restart Required)"):
+        st.info("Configuration applied! Restart the application to use the new selection criteria.")
+        st.balloons()
 
 if __name__ == "__main__":
     main()

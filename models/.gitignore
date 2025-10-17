@@ -1,0 +1,5 @@
+/weather_main_encoder.pkl
+/weather_description_encoder.pkl
+/feature_scaler.pkl
+/latest_model.pkl
+/latest_model_info.json

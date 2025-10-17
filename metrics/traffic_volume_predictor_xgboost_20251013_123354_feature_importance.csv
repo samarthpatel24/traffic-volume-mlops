@@ -1,0 +1,15 @@
+feature,importance
+hour,0.56789464
+is_weekend,0.19970185
+is_rush_hour,0.118897766
+day_of_week,0.062763855
+weather_severity,0.00980692
+clouds_all,0.007593544
+temp_celsius,0.006397071
+month,0.0056345314
+rain_1h,0.005095373
+total_precipitation,0.0044846977
+weather_description_encoded,0.0043550977
+weather_main_encoded,0.0043520764
+snow_1h,0.003022603
+is_holiday,0.0

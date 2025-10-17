@@ -4,7 +4,7 @@ data:
   
 model:
   name: 'traffic_volume_predictor'
-  type: 'ensemble'  # can be 'random_forest', 'xgboost', 'lightgbm', 'ensemble'
+  type: 'xgboost'  # can be 'random_forest', 'xgboost', 'lightgbm', 'ensemble'
   random_state: 42
   
   # Random Forest parameters
