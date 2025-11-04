@@ -225,7 +225,7 @@ def get_feature_importance():
 
 @app.route('/retrain', methods=['POST'])
 def retrain_model():
-    """Retrain model with new user-provided data"""
+    """Retrain model with new user-provided data using DVC pipeline"""
     global model_info
     
     try:
@@ -242,122 +242,81 @@ def retrain_model():
             if field not in data:
                 return jsonify({'error': f'Missing required field: {field}'}), 400
         
-        # Prepare features for the new data point
-        features = prepare_features(
-            data['temperature'], data['rain'], data['snow'], data['clouds'],
-            data['weather_main'], data['weather_description'], data['hour'],
-            data['day_of_week'], data['month'], data['is_holiday']
-        )
+        # Import DVC retraining functions
+        from dvc_retrain import retrain_with_dvc_pipeline, quick_retrain_fallback
         
-        if features is None:
-            return jsonify({'error': 'Failed to prepare features for retraining'}), 400
+        # Try DVC pipeline first
+        print("🚀 Attempting DVC-based retraining...")
+        dvc_result = retrain_with_dvc_pipeline(data)
         
-        # Load existing training data
-        train_data_path = 'data/processed/train.csv'
-        if os.path.exists(train_data_path):
-            # Read existing training data
-            import pandas as pd
-            existing_data = pd.read_csv(train_data_path)
+        if dvc_result['success']:
+            # DVC pipeline succeeded
+            print("✅ DVC retraining completed successfully!")
             
-            # Create new data point as DataFrame
-            feature_names = [
-                'temp_celsius', 'rain_1h', 'snow_1h', 'clouds_all',
-                'hour', 'day_of_week', 'month', 'is_weekend', 'is_rush_hour',
-                'is_holiday', 'weather_severity', 'total_precipitation',
-                'weather_main_encoded', 'weather_description_encoded'
-            ]
+            # Try to reload the model from the latest DVC output
+            try:
+                # Reload model and info after DVC pipeline
+                latest_model_path = 'models/latest_model.pkl'
+                latest_info_path = 'models/latest_model_info.json'
+                
+                if os.path.exists(latest_model_path) and os.path.exists(latest_info_path):
+                    global model
+                    model = joblib.load(latest_model_path)
+                    
+                    with open(latest_info_path, 'r') as f:
+                        model_info = json.load(f)
+                    
+                    print(f"🔄 Reloaded model: {model_info.get('model_name', 'latest_model')}")
+                
+            except Exception as e:
+                print(f"⚠️  Warning: Could not reload model - {str(e)}")
             
-            new_row = {}
-            for i, name in enumerate(feature_names):
-                new_row[name] = features[0][i]
-            new_row['traffic_volume'] = float(data['actual_traffic_volume'])
+            return jsonify({
+                'success': True,
+                'message': dvc_result['message'],
+                'method': 'DVC Pipeline',
+                'training_samples': dvc_result.get('training_samples', 'Unknown'),
+                'timestamp': dvc_result['timestamp'],
+                'metrics': dvc_result.get('metrics', {}),
+                'dvc_pipeline': True,
+                's3_synced': True,
+                'model_info': dvc_result.get('model_info', {})
+            })
+        
+        else:
+            # DVC pipeline failed, try fallback method
+            print(f"⚠️  DVC retraining failed: {dvc_result.get('error', 'Unknown error')}")
+            print("🔄 Falling back to quick retraining method...")
             
-            # Add new data point
-            new_data_df = pd.DataFrame([new_row])
-            updated_data = pd.concat([existing_data, new_data_df], ignore_index=True)
+            fallback_result = quick_retrain_fallback(data, model, feature_scaler, model_info)
             
-            # Save updated training data
-            updated_data.to_csv(train_data_path, index=False)
-            
-            # Retrain model with updated data
-            X = updated_data[feature_names]
-            y = updated_data['traffic_volume']
-            
-            # Scale features
-            if feature_scaler:
-                X_scaled = feature_scaler.fit_transform(X)
-            else:
-                X_scaled = X
-            
-            # Retrain the model
-            if model:
-                model.fit(X_scaled, y)
-                
-                # Calculate metrics on the updated dataset
-                y_pred = model.predict(X_scaled)
-                from sklearn.metrics import mean_squared_error, mean_absolute_error, r2_score
-                import math
-                
-                mse = mean_squared_error(y, y_pred)
-                rmse = math.sqrt(mse)
-                mae = mean_absolute_error(y, y_pred)
-                r2 = r2_score(y, y_pred)
-                
-                # Save updated model
-                timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
-                model_name = f"traffic_volume_predictor_retrained_{timestamp}"
-                model_path = f"models/{model_name}.pkl"
-                info_path = f"models/{model_name}_info.json"
-                
-                joblib.dump(model, model_path)
-                
-                # Create and save model info
-                retrained_model_info = {
-                    'model_name': model_name,
-                    'model_path': model_path,
-                    'model_type': 'Retrained Ensemble',
-                    'timestamp': timestamp,
-                    'created_at': datetime.now().isoformat(),
-                    'last_retrained': datetime.now().isoformat(),
-                    'training_samples': len(updated_data),
-                    'retrained_from': model_info.get('model_name', 'Unknown') if model_info else 'Unknown',
-                    'metrics': {
-                        'mse': float(mse),
-                        'rmse': float(rmse),
-                        'mae': float(mae),
-                        'r2': float(r2)
-                    }
-                }
-                
-                # Save model info to file
-                import json
-                with open(info_path, 'w') as f:
-                    json.dump(retrained_model_info, f, indent=2)
-                
+            if fallback_result['success']:
                 # Update global model info
-                model_info = retrained_model_info
-                
-                print(f"✅ Model retrained successfully: {model_name}")
-                print(f"📊 New metrics - R²: {r2:.3f}, RMSE: {rmse:.1f}, MAE: {mae:.1f}")
-                print(f"📈 Training samples: {len(updated_data)}")
+                model_info = {
+                    'model_name': fallback_result.get('model_name', 'quicktrain_model'),
+                    'timestamp': fallback_result['timestamp'],
+                    'metrics': fallback_result.get('metrics', {})
+                }
                 
                 return jsonify({
                     'success': True,
-                    'message': 'Model retrained successfully',
-                    'model_name': model_name,
-                    'training_samples': len(updated_data),
-                    'timestamp': datetime.now().isoformat(),
-                    'metrics': {
-                        'r2': float(r2),
-                        'rmse': float(rmse),
-                        'mae': float(mae)
-                    },
-                    'previous_model': model_info.get('model_name', 'Unknown') if 'model_info' in globals() else 'Unknown'
+                    'message': fallback_result['message'],
+                    'method': 'Quick Retrain (DVC Fallback)',
+                    'training_samples': fallback_result.get('training_samples', 'Unknown'),
+                    'timestamp': fallback_result['timestamp'],
+                    'metrics': fallback_result.get('metrics', {}),
+                    'dvc_pipeline': False,
+                    's3_synced': False,
+                    'warning': f"DVC pipeline failed: {dvc_result.get('error', 'Unknown error')}"
                 })
             else:
-                return jsonify({'error': 'No model available for retraining'}), 500
-        else:
-            return jsonify({'error': 'Training data file not found'}), 500
+                # Both methods failed
+                return jsonify({
+                    'success': False,
+                    'error': 'Both DVC and fallback retraining methods failed',
+                    'dvc_error': dvc_result.get('error', 'Unknown DVC error'),
+                    'fallback_error': fallback_result.get('error', 'Unknown fallback error')
+                }), 500
             
     except Exception as e:
         return jsonify({'error': f'Retraining failed: {str(e)}'}), 500

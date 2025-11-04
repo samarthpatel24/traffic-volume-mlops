@@ -1,5 +1,5 @@
 outs:
-- md5: 81486c20a25455cd206e9b36c8c7c859
-  size: 2905056
+- md5: d799e047fc7aa85eda0a82243c98c0e6
+  size: 2899403
   hash: md5
   path: Metro_Interstate_Traffic_Volume.csv
