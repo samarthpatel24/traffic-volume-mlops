@@ -57,7 +57,7 @@ jobs:
     - name: Build and push to both ECR and Docker Hub
       env:
         ECR_REGISTRY: ${{ steps.login-ecr.outputs.registry }}
-        ECR_REPOSITORY: traffic-volume-predictor
+        ECR_REPOSITORY: traffic-volume
         DOCKER_HUB_USERNAME: ${{ secrets.DOCKER_HUB_USERNAME }}
         IMAGE_TAG: ${{ github.sha }}
       run: |
