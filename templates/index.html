@@ -386,9 +386,28 @@
         
         <!-- Model Information -->
         <div class="model-info">
-            <h3>🤖 Model Information</h3>
+            <h3>🤖 Model Information & Management</h3>
+            
+            <!-- Current Model Info -->
             <div id="modelInfoContent">
                 <p>Loading model information...</p>
+            </div>
+            
+            <!-- Model Switching Section -->
+            <div class="model-switch-section" style="margin-top: 20px; padding: 15px; background: rgba(52, 152, 219, 0.1); border-radius: 8px;">
+                <h4>📦 Switch Models (DVC Tracked)</h4>
+                <div style="display: flex; gap: 10px; align-items: center; margin-top: 10px;">
+                    <select id="modelSelect" style="flex: 1; padding: 8px; border-radius: 5px; border: 1px solid #ddd;">
+                        <option value="">Loading available models...</option>
+                    </select>
+                    <button onclick="switchModel()" style="padding: 8px 15px; background: #3498db; color: white; border: none; border-radius: 5px; cursor: pointer;">
+                        🔄 Switch
+                    </button>
+                    <button onclick="refreshModelList()" style="padding: 8px 15px; background: #2ecc71; color: white; border: none; border-radius: 5px; cursor: pointer;">
+                        ♻️ Refresh
+                    </button>
+                </div>
+                <div id="modelSwitchStatus" style="margin-top: 10px; font-size: 0.9em;"></div>
             </div>
         </div>
     </div>
@@ -587,10 +606,100 @@
             }
         });
         
+        // Model switching functions
+        async function loadAvailableModels() {
+            try {
+                const response = await fetch('/models/list');
+                const data = await response.json();
+                
+                const select = document.getElementById('modelSelect');
+                select.innerHTML = '<option value="">Select a model...</option>';
+                
+                if (data.models && data.models.length > 0) {
+                    data.models.forEach(model => {
+                        const option = document.createElement('option');
+                        option.value = model.model_name;
+                        
+                        // Show model info in option text
+                        const modelType = model.model_type || 'Unknown';
+                        const r2Score = model.metrics.r2 ? (model.metrics.r2 * 100).toFixed(1) + '%' : 'N/A';
+                        const localStatus = model.available_locally ? '📱' : '☁️';
+                        
+                        option.textContent = `${localStatus} ${model.model_name} (${modelType}, R²: ${r2Score})`;
+                        select.appendChild(option);
+                    });
+                    
+                    // Show summary
+                    document.getElementById('modelSwitchStatus').innerHTML = 
+                        `📊 Found ${data.total_models} models (${data.models_available_locally} local, ${data.total_models - data.models_available_locally} remote)`;
+                } else {
+                    select.innerHTML = '<option value="">No models found</option>';
+                    document.getElementById('modelSwitchStatus').innerHTML = '⚠️ No DVC-tracked models found';
+                }
+                
+            } catch (error) {
+                document.getElementById('modelSwitchStatus').innerHTML = '❌ Error loading models: ' + error.message;
+            }
+        }
+        
+        async function switchModel() {
+            const select = document.getElementById('modelSelect');
+            const selectedModel = select.value;
+            
+            if (!selectedModel) {
+                alert('Please select a model to switch to');
+                return;
+            }
+            
+            try {
+                document.getElementById('modelSwitchStatus').innerHTML = '🔄 Switching to ' + selectedModel + '...';
+                
+                const response = await fetch('/models/switch', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({
+                        model_name: selectedModel
+                    })
+                });
+                
+                const result = await response.json();
+                
+                if (result.success) {
+                    document.getElementById('modelSwitchStatus').innerHTML = 
+                        '✅ Successfully switched to: ' + result.model_name;
+                    
+                    // Reload model info to show new model
+                    await loadModelInfo();
+                    
+                    // Show success message
+                    setTimeout(() => {
+                        document.getElementById('modelSwitchStatus').innerHTML = 
+                            '✅ Active model: ' + result.model_name;
+                    }, 2000);
+                    
+                } else {
+                    document.getElementById('modelSwitchStatus').innerHTML = 
+                        '❌ Switch failed: ' + (result.error || 'Unknown error');
+                }
+                
+            } catch (error) {
+                document.getElementById('modelSwitchStatus').innerHTML = 
+                    '❌ Switch error: ' + error.message;
+            }
+        }
+        
+        async function refreshModelList() {
+            document.getElementById('modelSwitchStatus').innerHTML = '🔄 Refreshing model list...';
+            await loadAvailableModels();
+        }
+        
         // Load data on page load
         window.addEventListener('load', function() {
             loadModelInfo();
             loadFeatureImportance();
+            loadAvailableModels(); // Load available models for switching
         });
     </script>
 </body>

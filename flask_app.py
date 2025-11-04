@@ -14,6 +14,9 @@ import sys
 sys.path.append('src')
 from model_selector import ModelSelector
 
+# Import DVC model management functions
+from dvc_model_manager import get_dvc_tracked_models, switch_to_model, get_model_summary
+
 app = Flask(__name__)
 
 # Global variables for model and encoders
@@ -358,6 +361,86 @@ def retrain_model():
             
     except Exception as e:
         return jsonify({'error': f'Retraining failed: {str(e)}'}), 500
+
+@app.route('/models/list')
+def list_models():
+    """List all DVC-tracked models"""
+    try:
+        models_summary = get_model_summary()
+        return jsonify(models_summary)
+    except Exception as e:
+        return jsonify({'error': f'Failed to list models: {str(e)}'}), 500
+
+@app.route('/models/switch', methods=['POST'])
+def switch_model():
+    """Switch to a different DVC-tracked model"""
+    global model, model_info, weather_main_encoder, weather_description_encoder, feature_scaler
+    
+    try:
+        data = request.get_json()
+        model_name = data.get('model_name')
+        
+        if not model_name:
+            return jsonify({'error': 'model_name is required'}), 400
+        
+        # Switch to the requested model
+        switch_result = switch_to_model(model_name)
+        
+        if not switch_result['success']:
+            return jsonify(switch_result), 500
+        
+        # Load the new model
+        try:
+            model = joblib.load(switch_result['model_path'])
+            model_info = switch_result['model_info']
+            
+            # Try to load corresponding encoders (they might not exist for all models)
+            try:
+                weather_main_encoder = joblib.load('models/weather_main_encoder.pkl')
+                weather_description_encoder = joblib.load('models/weather_description_encoder.pkl')  
+                feature_scaler = joblib.load('models/feature_scaler.pkl')
+            except Exception as e:
+                print(f"Warning: Could not load some encoders: {e}")
+                # Keep existing encoders if available
+            
+            print(f"✅ Successfully switched to model: {model_name}")
+            
+            return jsonify({
+                'success': True,
+                'message': switch_result['message'],
+                'model_name': model_name,
+                'model_info': model_info,
+                'timestamp': datetime.now().isoformat()
+            })
+            
+        except Exception as e:
+            return jsonify({
+                'success': False,
+                'error': f'Failed to load model {model_name}: {str(e)}'
+            }), 500
+            
+    except Exception as e:
+        return jsonify({'error': f'Model switching failed: {str(e)}'}), 500
+
+@app.route('/models/current')
+def current_model():
+    """Get information about the currently loaded model"""
+    try:
+        current_info = {
+            'model_loaded': model is not None,
+            'model_info': model_info if model_info else {},
+            'encoders_loaded': {
+                'weather_main_encoder': weather_main_encoder is not None,
+                'weather_description_encoder': weather_description_encoder is not None,
+                'feature_scaler': feature_scaler is not None
+            },
+            'timestamp': datetime.now().isoformat()
+        }
+        
+        return jsonify(current_info)
+        
+    except Exception as e:
+        return jsonify({'error': f'Failed to get current model info: {str(e)}'}), 500
 
 @app.route('/health')
 def health_check():
