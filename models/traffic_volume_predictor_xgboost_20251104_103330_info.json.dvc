@@ -1,0 +1,5 @@
+outs:
+- md5: f5302bc897df65c1bdf7b9ffaa2c39fa
+  size: 486
+  hash: md5
+  path: traffic_volume_predictor_xgboost_20251104_103330_info.json

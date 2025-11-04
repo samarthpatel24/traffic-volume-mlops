@@ -1,0 +1,5 @@
+outs:
+- md5: 38578f5a9e29bac31f63a675d69601b8
+  size: 464699
+  hash: md5
+  path: traffic_volume_predictor_retrained_20251104_171645.pkl

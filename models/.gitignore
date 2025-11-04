@@ -1,5 +1,13 @@
+# DVC-tracked files (pipeline outputs)
 /weather_main_encoder.pkl
 /weather_description_encoder.pkl
 /feature_scaler.pkl
 /latest_model.pkl
 /latest_model_info.json
+
+# All model files should be tracked by DVC
+*.pkl
+*_info.json
+
+# But keep .dvc files in Git
+!*.dvc
