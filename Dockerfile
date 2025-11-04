@@ -27,17 +27,16 @@ RUN mkdir -p data/raw data/processed models metrics plots
 # Note: In production, you'd pull from S3 or DVC remote
 COPY data/ data/
 
-# Expose port for Streamlit
+# Expose port for Flask
 EXPOSE 8501
 
-# Health check
+# Health check for Flask
 HEALTHCHECK --interval=30s --timeout=30s --start-period=5s --retries=3 \
-    CMD curl -f http://localhost:8501/_stcore/health || exit 1
+    CMD curl -f http://localhost:8501/health || exit 1
 
-# Set environment variables for Streamlit
-ENV STREAMLIT_SERVER_PORT=8501
-ENV STREAMLIT_SERVER_ADDRESS=0.0.0.0
-ENV STREAMLIT_SERVER_HEADLESS=true
+# Set environment variables for Flask
+ENV FLASK_APP=flask_app.py
+ENV FLASK_ENV=production
 ENV STREAMLIT_BROWSER_GATHER_USAGE_STATS=false
 
 # Create non-root user for security
@@ -45,5 +44,5 @@ RUN useradd --create-home --shell /bin/bash mlops
 RUN chown -R mlops:mlops /app
 USER mlops
 
-# Run Streamlit app
-CMD ["streamlit", "run", "app.py", "--server.port=8501", "--server.address=0.0.0.0"]
+# Run Flask app
+CMD ["python", "flask_app.py"]

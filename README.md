@@ -9,12 +9,13 @@ This project implements an end-to-end MLOps solution for predicting interstate t
 ## 🚀 Key Features
 
 - **Complete MLOps Pipeline**: DVC for data versioning and pipeline orchestration
-- **Multiple ML Models**: XGBoost, Random Forest, LightGBM, and Ensemble methods
-- **Interactive Web App**: Streamlit-based user interface for predictions
-- **Containerization**: Docker and Docker Compose for easy deployment
-- **CI/CD Pipeline**: GitHub Actions for automated testing and deployment
-- **Cloud Deployment**: AWS EC2 and S3 integration with automated deployment
-- **Monitoring**: Health checks, logging, and performance metrics
+- **Multiple ML Models**: XGBoost, Random Forest, LightGBM, and Ensemble methods  
+- **Flask Web App**: Production-ready web interface with retrain functionality
+- **AWS S3 Integration**: Persistent model and data storage in the cloud
+- **Containerization**: Docker for consistent deployment across environments
+- **Simple CI/CD Pipeline**: GitHub Actions for automated testing and deployment
+- **Cloud Deployment**: AWS EC2 hosting with S3 backend storage
+- **Retrain Capability**: Users can contribute data to improve model performance
 
 ## 🏗️ Project Structure
 

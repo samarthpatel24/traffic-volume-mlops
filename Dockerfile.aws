@@ -1,0 +1,45 @@
+# Multi-stage Docker build for AWS deployment
+FROM python:3.9-slim as base
+
+# Set working directory
+WORKDIR /app
+
+# Install system dependencies
+RUN apt-get update && apt-get install -y \
+    curl \
+    && rm -rf /var/lib/apt/lists/*
+
+# Install Python dependencies
+COPY requirements.txt .
+RUN pip install --no-cache-dir -r requirements.txt
+
+FROM base as production
+
+# Copy application code
+COPY . .
+
+# Create necessary directories
+RUN mkdir -p data/raw data/processed models metrics plots templates src
+
+# Create non-root user for security
+RUN useradd --create-home --shell /bin/bash mlops
+RUN chown -R mlops:mlops /app
+USER mlops
+
+# Set environment variables
+ENV FLASK_APP=flask_app_s3.py
+ENV FLASK_ENV=production
+ENV PYTHONPATH=/app/src:/app
+
+# Expose port for Flask
+EXPOSE 8501
+
+# Health check for Flask
+HEALTHCHECK --interval=30s --timeout=30s --start-period=5s --retries=3 \
+    CMD curl -f http://localhost:8501/health || exit 1
+
+# Default to S3 mode (can be overridden with environment variables)
+ENV USE_S3=true
+
+# Run Flask app with S3 support
+CMD ["python", "flask_app_s3.py"]

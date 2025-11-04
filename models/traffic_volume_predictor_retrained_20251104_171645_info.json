@@ -1,0 +1,16 @@
+{
+  "model_name": "traffic_volume_predictor_retrained_20251104_171645",
+  "model_path": "models/traffic_volume_predictor_retrained_20251104_171645.pkl",
+  "model_type": "Retrained Ensemble",
+  "timestamp": "20251104_171645",
+  "created_at": "2025-11-04T17:16:45.731659",
+  "last_retrained": "2025-11-04T17:16:45.731659",
+  "training_samples": 38552,
+  "retrained_from": "traffic_volume_predictor_xgboost_20251104_103330",
+  "metrics": {
+    "mse": 186550.55197249763,
+    "rmse": 431.9149823431663,
+    "mae": 254.50864599846747,
+    "r2": 0.9525927372256332
+  }
+}

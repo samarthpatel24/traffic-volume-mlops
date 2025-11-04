@@ -6,6 +6,15 @@ stages:
     - src/preprocess.py
     - config/config.yaml
     outs:
+    - data/processed/cleaned_data.csv
+    
+  feature_engineer:
+    cmd: python src/feature_engineer.py
+    deps:
+    - data/processed/cleaned_data.csv
+    - src/feature_engineer.py
+    - config/config.yaml
+    outs:
     - data/processed/train.csv
     - data/processed/test.csv
     - data/processed/feature_names.txt

@@ -6,19 +6,12 @@
 set -e
 
 # Configuration
-DOCKER_IMAGE="your-dockerhub-username/traffic-volume-predictor"
-EC2_HOST="your-ec2-public-ip"
+DOCKER_IMAGE="matrix2415/traffic-volume-predictor"
+EC2_HOST="ec2-34-207-251-181.compute-1.amazonaws.com"
 EC2_USER="ec2-user"
-SSH_KEY_PATH="path/to/your/key.pem"
+SSH_KEY_PATH="samarth_mlops_5.pem"
 
 echo "Starting deployment to AWS EC2..."
-
-# Build and push Docker image
-echo "Building Docker image..."
-docker build -t $DOCKER_IMAGE:latest .
-
-echo "Pushing to Docker Hub..."
-docker push $DOCKER_IMAGE:latest
 
 # Deploy to EC2
 echo "Deploying to EC2 instance..."
@@ -32,10 +25,15 @@ ssh -i $SSH_KEY_PATH $EC2_USER@$EC2_HOST << 'EOF'
         sudo systemctl start docker
         sudo systemctl enable docker
         sudo usermod -a -G docker ec2-user
+        echo "Docker installed. Please logout and login again, then rerun this script."
+        exit 0
     fi
     
+    # Start Docker service if not running
+    sudo systemctl start docker
+    
     # Pull latest image
-    sudo docker pull your-dockerhub-username/traffic-volume-predictor:latest
+    sudo docker pull matrix2415/traffic-volume-predictor:latest
     
     # Stop existing container
     sudo docker stop traffic-app 2>/dev/null || true
@@ -46,10 +44,10 @@ ssh -i $SSH_KEY_PATH $EC2_USER@$EC2_HOST << 'EOF'
         --name traffic-app \
         --restart unless-stopped \
         -p 80:8501 \
-        your-dockerhub-username/traffic-volume-predictor:latest
+        matrix2415/traffic-volume-predictor:latest
     
     echo "Deployment completed successfully!"
-    echo "Application should be accessible at http://$EC2_HOST"
+    echo "Application should be accessible at http://ec2-34-207-251-181.compute-1.amazonaws.com"
 EOF
 
 echo "Deployment script completed!"
